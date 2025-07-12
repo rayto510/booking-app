@@ -1,8 +1,9 @@
 use backend::app;
 use tokio::net::TcpListener;
+use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() {
-    let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
-    axum::serve(listener, app()).await.unwrap();
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
+    axum::serve(TcpListener::bind(addr).await.unwrap(), app()).await.unwrap();
 }

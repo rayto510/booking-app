@@ -2,6 +2,8 @@ use axum::{routing::{get, post}, Router};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
+use tower_http::cors::{CorsLayer, Any};
+use axum::http::Method;
 
 pub mod types;
 use types::{Booking};
@@ -18,6 +20,18 @@ mod tests;
 pub fn app() -> Router {
     let db: Db = Arc::new(RwLock::new(HashMap::new()));
 
+   let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_headers(Any)
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS, // add this line
+        ]);
+
     Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route("/bookings",
@@ -30,4 +44,5 @@ pub fn app() -> Router {
             .delete(delete_booking)
         )
         .with_state(db)
+        .layer(cors)
 }
