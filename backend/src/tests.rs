@@ -117,6 +117,117 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_filter_bookings() {
+        let app = app();
+        let bookings = vec![
+            json!({
+                "name": "Alice",
+                "email": "alice@example.com",
+                "service_type": "Plumbing",
+                "date": "2025-07-20",
+                "time_slot": "10:00-11:00"
+            }),
+            json!({
+                "name": "Bob",
+                "email": "bob@example.com",
+                "service_type": "Haircut",
+                "date": "2025-07-21",
+                "time_slot": "14:00-15:00"
+            }),
+            json!({
+                "name": "Carol",
+                "email": "carol@example.com",
+                "service_type": "Plumbing",
+                "date": "2025-07-21",
+                "time_slot": "16:00-17:00"
+            }),
+        ];
+
+        // Insert bookings
+        for booking in &bookings {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri("/bookings")
+                        .header("content-type", "application/json")
+                        .body(Body::from(booking.to_string()))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+        }
+
+        // Filter by date = 2025-07-20 (Alice)
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/bookings?date=2025-07-20")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body_bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+        let bookings_response: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
+
+        assert_eq!(bookings_response.as_array().unwrap().len(), 1);
+        assert_eq!(bookings_response[0]["name"], "Alice");
+
+        // Filter by service_type = Plumbing (Alice and Carol)
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/bookings?service_type=Plumbing")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body_bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+        let bookings_response: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
+
+        assert_eq!(bookings_response.as_array().unwrap().len(), 2);
+        let names: Vec<_> = bookings_response
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|b| b["name"].as_str().unwrap())
+            .collect();
+        assert!(names.contains(&"Alice"));
+        assert!(names.contains(&"Carol"));
+
+        // Filter by date=2025-07-21 & service_type=Haircut (Bob only)
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/bookings?date=2025-07-21&service_type=Haircut")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body_bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+        let bookings_response: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
+
+        assert_eq!(bookings_response.as_array().unwrap().len(), 1);
+        assert_eq!(bookings_response[0]["name"], "Bob");
+    }
+
+    #[tokio::test]
     async fn update_booking_status() {
         let app = app();
 

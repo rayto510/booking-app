@@ -18,6 +18,13 @@ pub struct Booking {
 }
 
 #[derive(Deserialize)]
+pub struct BookingFilters {
+    pub date: Option<String>,
+    pub service_type: Option<String>,
+}
+
+
+#[derive(Deserialize)]
 pub struct CreateBooking {
     pub name: String,
     pub email: String,

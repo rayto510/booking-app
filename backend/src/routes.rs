@@ -1,13 +1,12 @@
 use uuid::Uuid;
 use axum::{
-    extract::{State, Path},
+    extract::{State, Path, Query},
     http::StatusCode,
     Json,
 };
 use serde_json::Value;
 
-use crate::types::{Db, CreateBooking, Booking};
-
+use crate::types::{Db, CreateBooking, Booking, BookingFilters};
 
 // POST /bookings
 pub async fn create_booking(
@@ -28,10 +27,28 @@ pub async fn create_booking(
     Json(booking)
 }
 
-// GET /bookings
-pub async fn list_bookings(State(db): State<Db>) -> Json<Vec<Booking>> {
-    let bookings = db.read().await;
-    Json(bookings.values().cloned().collect())
+
+pub async fn list_bookings(
+    State(db): State<Db>,
+    Query(filters): Query<BookingFilters>,
+) -> Json<Vec<Booking>> {
+    let store = db.read().await;
+
+    let filtered = store.values().filter(|booking| {
+        let mut matches = true;
+
+        if let Some(ref date) = filters.date {
+            matches &= booking.date == *date;
+        }
+
+        if let Some(ref service) = filters.service_type {
+            matches &= booking.service_type == *service;
+        }
+
+        matches
+    });
+
+    Json(filtered.cloned().collect())
 }
 
 /// GET /bookings/:id
